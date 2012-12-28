@@ -1,0 +1,3 @@
+[submodule "angular-mobile-nav"]
+	path = angular-mobile-nav
+	url = https://github.com/ajoslin/angular-mobile-nav
