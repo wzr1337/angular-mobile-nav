@@ -76,8 +76,7 @@ ul > li > a {
 /************************************************************************************************/
 
 .panel {
-    background: #c5ccd4 url(pinstripes.png);
-    height: 100%;
+    background: #c5ccd4 url(../az_subtle.png);
 }
 
 .toggle {
