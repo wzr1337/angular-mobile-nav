@@ -97,14 +97,36 @@ angular.module('mobile-navigate').factory('$change', ['$q', '$rootScope', functi
     return deferred.promise;
   };
 }]);
-angular.module('mobile-navigate').service('$navigate', ['$rootScope', '$location',
-function($rootScope, $location) {
+angular.module('mobile-navigate').service('$navigate', ['$rootScope', '$location', '$route',
+function($rootScope, $location, $route) {
   var self = this,
     navHistory = []; //we keep our own version of history and ignore window.history
 
-  function Page(path, transition) {
-    this.path = path;
-    this.transition = transition || 'slide';
+  function Page(path, transition, isReverse) {
+    var _path = path,
+      _transition = transition || 'slide',
+      _isReverse = isReverse,
+      _onceTransition;
+
+    this.transition = function() {
+      var trans;
+      if (_onceTransition) {
+        trans = _onceTransition;
+        _onceTransition = null;
+      } else {
+        trans = _transition;
+      }
+      return trans;
+    };
+    this.path = function() { return _path; };
+    this.reverse = function() { return _isReverse; };
+
+    //For setting a transition on a page - but only one time
+    //Eg say on startup, we want to transition in with 'none',
+    //but want to be 'slide' after that
+    this.transitionOnce = function(trans) {
+      _onceTransition = trans;
+    };
   }
   
   function navigate(destination, source, isBack) {
@@ -117,17 +139,35 @@ function($rootScope, $location) {
    * Only one listen is ever active, so if you press for example 
    * /link1 then press back before /link1 is done, it will go listen for the back
    */
-  self.onRouteSuccess = angular.noop; //default value
+  self.onRouteSuccess = null;
+  //Add a default onroutesuccess for the very first page
+  function defaultRouteSuccess($event, next, last) {
+    self.current && navHistory.push(self.current);
+    self.next = new Page($location.path());
+    self.next.transitionOnce('none');
+    navigate(self.next);
+    self.onRouteSuccess = null;
+  }
   $rootScope.$on('$routeChangeSuccess', function($event, next, last) {
-    self.onRouteSuccess($event, next, last);
+    (self.onRouteSuccess || defaultRouteSuccess)($event, next, last);
   });
 
-  self.go = function go(path, transition) {
+  /*
+   * go -transitions to new page
+   * @param path - new path
+   * @param {optional} String transition
+   * @param {optional} boolean isReverse, default false
+   */
+  self.go = function go(path, transition, isReverse) {
+    if (typeof transition == 'boolean') {
+      isReverse = transition;
+      transition = null;
+    }
     $location.path(path);
     //Wait for successful route change before actually doing stuff
     self.onRouteSuccess = function($event, next, last) {
       self.current && navHistory.push(self.current);
-      self.next = new Page(path, transition || next.$route.transition);
+      self.next = new Page(path, transition || next.$route.transition, isReverse);
       navigate(self.next, self.current, false);
     };
   };
@@ -138,7 +178,7 @@ function($rootScope, $location) {
   self.back = function() {
     if (navHistory.length > 0) {
       var previous = navHistory[navHistory.length-1];
-      $location.path(previous.path);
+      $location.path(previous.path());
       self.onRouteSuccess = function() {
         navHistory.pop();
         self.next = previous;
@@ -188,10 +228,15 @@ function($rootScope, $compile, $controller, $route, $change) {
 
     var currentTrans;
     scope.$on('$pageTransitionStart', function transitionStart($event, dest, source, reverse) {
-      function transition() {
+      function changePage() {
         insertPage(dest);
+        transition = reverse ? source.transition() : dest.transition();
+        //If the page is marked as reverse, reverse the direction (lol)
+        if (dest.reverse() || ($route.current && $route.current.$route.reverse)) {
+          reverse = !reverse;
+        }
         var promise = $change(dest.element, (source ? source.element : null),
-          (reverse ? source.transition : dest.transition), reverse);
+          transition, reverse);
 
         promise.then(function() {
           if (source) {
@@ -205,7 +250,7 @@ function($rootScope, $compile, $controller, $route, $change) {
         return promise;
       }
       currentTrans && currentTrans.cancel();
-      currentTrans = transition(dest, source, reverse);
+      currentTrans = changePage(dest, source, reverse);
     });
   }
   return {
