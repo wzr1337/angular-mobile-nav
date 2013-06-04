@@ -31,7 +31,7 @@ function($rootScope, $compile, $controller, $route, $change, $q) {
     var currentTrans;
     scope.$on('$pageTransitionStart', function ($event, dest, source, reverse) {
       function changePage() {
-        var current = $route.current ? $route.current.$$route : {};
+        var current = $route.current.$$route ? $route.current.$$route : {};
         var transition = reverse ? source.transition() : dest.transition();
 
         insertPage(dest);
@@ -98,7 +98,7 @@ function($rootScope, $compile, $controller, $route, $change, $q) {
   return {
     restrict: 'EA',
     link: function(scope, elm, attrs) {
-      var route = $route.current ? $route.current.$$route : {};
+      var route = $route.current.$$route ? $route.current.$$route : {};
       var template = route.templateUrl || route.template;
       var rawElm = elm[0];
 
