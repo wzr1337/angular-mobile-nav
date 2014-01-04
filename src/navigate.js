@@ -61,15 +61,25 @@ angular.module('ajoslin.mobile-navigate')
     /*
      * go -transitions to new page
      * @param path - new path
+     * @param {optional} object uri query parameters
      * @param {optional} String transition
      * @param {optional} boolean isReverse, default false
      */
-    nav.go = function go(path, transition, isReverse) {
+    nav.go = function go(path, params, transition, isReverse) {
+      var _$location = $location;
+      if (angular.isObject(params)) {
+        _$location = $location.search(params);
+      }
+      else { 
+        isReverse = transition;
+        transition = params;
+        params = undefined;
+      }
       if (typeof transition == 'boolean') {
         isReverse = transition;
         transition = null;
       }
-      $location.path(path);
+      _$location.path(path);
       //Wait for successful route change before actually doing stuff
       nav.onRouteSuccess = function($event, next, last) {
         nav.current && navHistory.push(nav.current);
